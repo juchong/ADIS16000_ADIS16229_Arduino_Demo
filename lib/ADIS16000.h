@@ -133,11 +133,14 @@ public:
   	// Save configuration settings for selected sensor. Returns 1 when complete.
   	int saveSensorSettings(uint8_t sensorAddr);
 
-  	// Reads entire FFT buffer. Returns array with 256 samples when complete.
-  	int16_t * readFFTBuffer();
+  	// Reads entire X-Axis FFT buffer. Returns array with 256 samples when complete.
+  	int16_t * readxFFTBuffer(uint8_t sensorAddr);
 
-  	// Reads single FFT sample. Returns single sample when complete. 
-  	int16_t readFFT(uint8_t sample);
+  	// Reads entire Y-Axis FFT buffer. Returns array with 256 samples when complete.
+  	int16_t * readyFFTBuffer(uint8_t sensorAddr);
+
+  	// Reads single FFT sample from both (X & Y) axis. Returns single sample when complete. 
+  	int16_t * readFFT(uint8_t sample, uint8_t sensorAddr);
 
   	// Sets DataReady GPIO pin. Returns 1 when complete.
   	int setDataReady(uint8_t dio);

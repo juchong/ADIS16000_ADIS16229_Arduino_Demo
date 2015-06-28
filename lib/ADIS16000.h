@@ -134,10 +134,7 @@ public:
   	int saveSensorSettings(uint8_t sensorAddr);
 
   	// Reads entire X-Axis FFT buffer. Returns array with 256 samples when complete.
-  	int16_t * readxFFTBuffer(uint8_t sensorAddr);
-
-  	// Reads entire Y-Axis FFT buffer. Returns array with 256 samples when complete.
-  	int16_t * readyFFTBuffer(uint8_t sensorAddr);
+  	int16_t * readFFTBuffer(uint8_t sensorAddr);
 
   	// Reads single FFT sample from both (X & Y) axis. Returns single sample when complete. 
   	int16_t * readFFT(uint8_t sample, uint8_t sensorAddr);
@@ -148,17 +145,19 @@ public:
   	// Reads entire time buffer when DataReady transitions. Returns array with 512 samples.
   	int16_t * readTimeBuffer();
 
+    int setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t sensorAddr);
+
   	// Scales single time sample. Returns acceleration in mg.
-  	float scaleTime(int16_t time);
+  	float scaleTime(int16_t sensorData, int gRange);
 
   	// Scales single FFT sample. Returns acceleration in mg.
-  	float scaleFFT(int16_t fft);
+  	float scaleFFT(int16_t sensorData, int gRange);
 
   	// Scales supply voltage. Returns voltage in mV.
-  	float scaleSupply(int16_t voltage);
+  	float scaleSupply(int16_t sensorData);
 
   	// Scales sensor temperature. Returns temperature in C.
-  	float scaleTemp(int16_t temp);
+  	float scaleTemp(int16_t sensorData);
 
 private:
 	int _CS;

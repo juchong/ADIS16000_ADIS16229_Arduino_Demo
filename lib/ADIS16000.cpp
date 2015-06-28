@@ -150,19 +150,19 @@ int addSensor(uint8_t sensorAddr) {
 	return 1;
 }
 
-int removeSensor(uint8_t sensorAddr) {
+int ADIS16000::removeSensor(uint8_t sensorAddr) {
 	regWrite(CMD_DATA, sensorAddr);
 	regWrite(GLOB_CMD_G, 0x100);
 	return 1;
 }
 
-int saveGatewaySettings() {
+int ADIS16000::saveGatewaySettings() {
 	regWrite(PAGE_ID, 0x00);
 	regWrite(GLOB_CMD_G, 0x40);
 	return 1;
 }
 
-int saveSensorSettings(uint8_t sensorAddr) {
+int ADIS16000::saveSensorSettings(uint8_t sensorAddr) {
 	regWrite(PAGE_ID, sensorAddr);
 	regWrite(GLOB_CMD_S, 0x40);
 	regWrite(PAGE_ID, 0x00);
@@ -170,25 +170,20 @@ int saveSensorSettings(uint8_t sensorAddr) {
 	return 1;
 }
 
-int16_t * readxFFTBuffer(uint8_t sensorAddr) {
-	int16_t buffer [256];
+int16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
+	int16_t buffer [512];
 	regWrite(PAGE_ID, sensorAddr);
-	for (int i = 0; i < 255, i++) {
-		buffer[i] = regRead(X_BUF);
+  regWrite(BUF_PNTR, 0x00);
+  regWrite(GLOB_CMD_S, 0x800); // Start data acquisition
+  regWrite(GLOB_CMD_G, 0X2); // Send data to sensor
+	for (int i = 0; i < 511, i++) {
+		bufferx[i] = regRead(X_BUF);
+    buffery[i + 256] = regRead(Y_BUF);
 	}
 	return buffer;
 }
 
-int16_t * readyFFTBuffer(uint8_t sensorAddr) {
-	int16_t buffer [256];
-	regWrite(PAGE_ID, sensorAddr);
-	for (int i = 0; i < 255, i++) {
-		buffer[i] = regRead(X_BUF);
-	}
-	return buffer;
-}
-
-int16_t * readFFT(uint8_t sample, uint8_t sensorAddr) {
+int16_t * ADIS16000::readFFT(uint8_t sample, uint8_t sensorAddr) {
 	int16_t buffer [2];
 	regWrite(PAGE_ID, sensorAddr);
 	regWrite(BUF_PNTR, sample);
@@ -197,7 +192,7 @@ int16_t * readFFT(uint8_t sample, uint8_t sensorAddr) {
 	return buffer;
 }
 
-int setDataReady(uint8_t dio) {
+int ADIS16000::setDataReady(uint8_t dio) {
 	regWrite(PAGE_ID, 0x00);
 	if (dio == 1){
 		regWrite(GPO_CTRL, 0x08);
@@ -209,6 +204,96 @@ int setDataReady(uint8_t dio) {
 		return dio;
 	}
 
-	if (dio != 1 | 2)
+	if (dio != 1 || 2)
 		return 0;
+}
+
+int ADIS16000::setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t sensorAddr) {
+  regWrite(PAGE_ID, sensorAddr);
+  regWrite(UPDAT_INT, interval);
+  regWrite(INT_SCL, scalefactor);
+  regWrite(GLOB_CMD_S, 0x800);
+  return 1;
+}
+
+float ADIS16000::scaleTime(int16_t sensorData, int gRange {
+  int lsbrange = 0;
+  int signedData = 0;
+  int isNeg = sensorData & 0x8000;
+  if (isNeg == 0x8000) // If the number is negative, scale and sign the output
+    signedData = sensorData - 0xFFFF;
+  else
+    signedData = sensorData; // Else return the raw number
+  switch (gRange) {
+    case 1:
+      lsbrange = 0.0305;
+      break;
+    case 5:
+      lsbrange = 0.1526;
+      break;
+    case 10:
+      lsbrange = 0.3052;
+      break;
+    case 20:
+      lsbrange = 0.6104;
+      break;
+    default:
+      lsbrange = 0.0305;
+      break;
+  }
+  float finalData = signedData * lsbrange;
+  return finalData;
+}
+
+float ADIS16000::scaleFFT(int16_t sensorData, int gRange {
+  int lsbrange = 0;
+  int signedData = 0;
+  int isNeg = sensorData & 0x8000;
+  if (isNeg == 0x8000) // If the number is negative, scale and sign the output
+    signedData = sensorData - 0xFFFF;
+  else
+    signedData = sensorData; // Else return the raw number
+  switch (gRange) {
+    case 1:
+      lsbrange = 0.0153;
+      break;
+    case 5:
+      lsbrange = 0.0763;
+      break;
+    case 10:
+      lsbrange = 0.1526;
+      break;
+    case 20:
+      lsbrange = 0.3052;
+      break;
+    default:
+      lsbrange = 0.0153;
+      break;
+  }
+  float finalData = signedData * lsbrange;
+  return finalData;
+}
+
+float ADIS16000::scaleSupply(int16_t sensorData)
+{
+  int signedData = 0;
+  int isNeg = sensorData & 0x8000;
+  if (isNeg == 0x8000) // If the number is negative, scale and sign the output
+    signedData = sensorData - 0xFFFF;
+  else
+    signedData = sensorData; // Else return the raw number
+  float finalData = signedData * 0.00044; // Multiply by accel sensitivity (250 uG/LSB)
+  return finalData;
+}
+
+float ADIS16000::scaleTemp(int16_t sensorData)
+{
+  int signedData = 0;
+  int isNeg = sensorData & 0x8000;
+  if (isNeg == 0x8000) // If the number is negative, scale and sign the output
+    signedData = sensorData - 0xFFFF;
+  else
+    signedData = sensorData; // Else return the raw number
+  float finalData = signedData * 0.0815; // Multiply by accel sensitivity (250 uG/LSB)
+  return finalData;
 }

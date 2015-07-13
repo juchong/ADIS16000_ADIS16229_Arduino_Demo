@@ -104,13 +104,15 @@ class ADIS16000{
 
 public:
 	// ADIS16000 Constructor (ChipSelect, Reset Pins)
-	ADIS16000(int CS, int RST);
+	ADIS16000(int CS, int DR, int RST);
 
 	// Destructor
 	~ADIS16000();
 
 	// Performs hardware reset. Delay in milliseconds. Returns 1 when complete.
-	int resetDUT(uint8_t ms);
+	int hardwareResetDUT(uint8_t ms);
+
+  int softwareResetDUT();
 
 	// Sets SPI bit order, clock divider, and data mode. Returns 1 when complete.
 	int configSPI();
@@ -133,14 +135,20 @@ public:
   	// Save configuration settings for selected sensor. Returns 1 when complete.
   	int saveSensorSettings(uint8_t sensorAddr);
 
+    int initRealTimeSampling();
+
+    int stopRealTimeSampling();
+
   	// Reads entire X-Axis FFT buffer. Returns array with 256 samples when complete.
   	int16_t * readFFTBuffer(uint8_t sensorAddr);
 
   	// Reads single FFT sample from both (X & Y) axis. Returns single sample when complete. 
   	int16_t * readFFT(uint8_t sample, uint8_t sensorAddr);
 
+    int triggerFFT();
+
   	// Sets DataReady GPIO pin. Returns 1 when complete.
-  	int setDataReady(uint8_t dio);
+  	int setDataReady();
 
   	// Reads entire time buffer when DataReady transitions. Returns array with 512 samples.
   	int16_t * readTimeBuffer();
@@ -162,5 +170,6 @@ public:
 private:
 	int _CS;
 	int _RST;
+  int _DR;
 
 };

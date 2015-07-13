@@ -22,7 +22,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#include "ADIS16000"
+#include "ADIS16000.h"
 
 ////////////////////////////////////////////////////////////////////////////
 // Constructor with configurable CS and RST
@@ -30,9 +30,10 @@
 // CS - Chip select pin
 // RST - Hardware reset pin
 ////////////////////////////////////////////////////////////////////////////
-ADIS16000::ADIS16000(int CS, int RST) {
+ADIS16000::ADIS16000(int CS, int DR, int RST) {
   _CS = CS;
   _RST = RST;
+  _DR = DR;
 
   SPI.begin(); // Initialize SPI bus
   configSPI(); // Configure SPI
@@ -40,8 +41,10 @@ ADIS16000::ADIS16000(int CS, int RST) {
 //Set default pin states
   pinMode(_CS, OUTPUT); // Set CS pin to be an output
   pinMode(_RST, OUTPUT); // Set RST pin to be an output
+  pinMode(_DR, INPUT); // Set CS pin to be an output
   digitalWrite(_CS, HIGH); // Initialize CS pin to be high
   digitalWrite(_RST, HIGH); // Initialize RST pin to be high
+  setDataReady();
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -55,12 +58,16 @@ ADIS16000::~ADIS16000() {
 ////////////////////////////////////////////////////////////////////////////
 // Performs a hardware reset by setting _RST pin low for delay (in ms).
 ////////////////////////////////////////////////////////////////////////////
-int ADIS16000::resetDUT(uint8_t ms) {
+int ADIS16000::hardwareResetDUT(uint8_t ms) {
   digitalWrite(_RST, LOW);
   delay(100);
   digitalWrite(_RST, HIGH);
   delay(ms);
   return 1;
+}
+
+int ADIS16000::softwareResetDUT() {
+  regWrite(GLOB_CMD_G, 0x80);
 }
 
 ////////////////////////////////////////////////////////////////////////////
@@ -143,15 +150,23 @@ int ADIS16000::regWrite(uint8_t regAddr,uint16_t regData) {
   return 1;
 }
 
-int addSensor(uint8_t sensorAddr) {
+int ADIS16000::addSensor(uint8_t sensorAddr) {
 	regWrite(GLOB_CMD_G, 0x01);
-	delayMicroseconds(500);
+	delayMicroseconds(500000);
 	regWrite(CMD_DATA, sensorAddr);
-	return 1;
+  delayMicroseconds(2000000);
+  uint16_t sensData = regRead(SENS_ID);
+  uint16_t HexID = 0xAD00;
+  HexID = HexID + sensorAddr;
+  if(HexID |= sensData)
+    return 0;
+  else
+	  return 1;
 }
 
 int ADIS16000::removeSensor(uint8_t sensorAddr) {
 	regWrite(CMD_DATA, sensorAddr);
+  delayMicroseconds(2000000);
 	regWrite(GLOB_CMD_G, 0x100);
 	return 1;
 }
@@ -170,15 +185,32 @@ int ADIS16000::saveSensorSettings(uint8_t sensorAddr) {
 	return 1;
 }
 
+int ADIS16000::initRealTimeSampling() {
+  uint16_t rcWord = regRead(REC_CTRL1);
+  uint16_t wWord = rcWord & 0xFFFC;
+  wWord = wWord | 0x03;
+  regWrite(REC_CTRL1, wWord);
+  regWrite(GLOB_CMD_S, 0x800);
+  delayMicroseconds(100000);
+  regWrite(GLOB_CMD_G, 0x02);
+  return 1;
+}
+
+int ADIS16000::stopRealTimeSampling() {
+  regWrite(GLOB_CMD_S, 0x800);
+  return 1;
+}
+
 int16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
 	int16_t buffer [512];
 	regWrite(PAGE_ID, sensorAddr);
   regWrite(BUF_PNTR, 0x00);
+  delayMicroseconds(100000);
   regWrite(GLOB_CMD_S, 0x800); // Start data acquisition
   regWrite(GLOB_CMD_G, 0X2); // Send data to sensor
-	for (int i = 0; i < 511, i++) {
-		bufferx[i] = regRead(X_BUF);
-    buffery[i + 256] = regRead(Y_BUF);
+	for (int i = 0; i < 511; i++) {
+		buffer[i] = regRead(X_BUF);
+    buffer[i + 256] = regRead(Y_BUF);
 	}
 	return buffer;
 }
@@ -192,20 +224,13 @@ int16_t * ADIS16000::readFFT(uint8_t sample, uint8_t sensorAddr) {
 	return buffer;
 }
 
-int ADIS16000::setDataReady(uint8_t dio) {
-	regWrite(PAGE_ID, 0x00);
-	if (dio == 1){
-		regWrite(GPO_CTRL, 0x08);
-		return dio;
-	}
-		
-	if (dio == 2){
-		regWrite(GPO,CTRL, 0x20);
-		return dio;
-	}
+int ADIS16000::triggerFFT() {
+  regWrite(GLOB_CMD_G, 0x02);
+}
 
-	if (dio != 1 || 2)
-		return 0;
+int ADIS16000::setDataReady() {
+	regWrite(PAGE_ID, 0x00);
+	regWrite(GPO_CTRL, 0x08);
 }
 
 int ADIS16000::setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t sensorAddr) {
@@ -216,7 +241,7 @@ int ADIS16000::setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t s
   return 1;
 }
 
-float ADIS16000::scaleTime(int16_t sensorData, int gRange {
+float ADIS16000::scaleTime(int16_t sensorData, int gRange) {
   int lsbrange = 0;
   int signedData = 0;
   int isNeg = sensorData & 0x8000;
@@ -245,7 +270,7 @@ float ADIS16000::scaleTime(int16_t sensorData, int gRange {
   return finalData;
 }
 
-float ADIS16000::scaleFFT(int16_t sensorData, int gRange {
+float ADIS16000::scaleFFT(int16_t sensorData, int gRange) {
   int lsbrange = 0;
   int signedData = 0;
   int isNeg = sensorData & 0x8000;

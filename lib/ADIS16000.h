@@ -103,6 +103,8 @@
 class ADIS16000{
 
 public:
+  typedef int16_t *buffer[256][2];
+
 	// ADIS16000 Constructor (ChipSelect, Reset Pins)
 	ADIS16000(int CS, int DR, int RST);
 
@@ -121,7 +123,9 @@ public:
  	int16_t regRead(uint8_t regAddr);
 
   	// Write register (two bytes). Returns 1 when complete.
-  	int regWrite(uint8_t regAddr, uint16_t regData);
+  	int regWrite(uint8_t regAddr, int16_t regData);
+
+    int testSensor(uint8_t sensorData);
 
   	// Add sensor to network. Returns 1 when complete.
   	int addSensor(uint8_t sensorAddr);
@@ -135,9 +139,13 @@ public:
   	// Save configuration settings for selected sensor. Returns 1 when complete.
   	int saveSensorSettings(uint8_t sensorAddr);
 
+    int pollSensor(uint8_t sensorAddr);
+
     int initRealTimeSampling();
 
     int stopRealTimeSampling();
+
+    int requestFFTData(uint8_t sensorAddr);
 
   	// Reads entire X-Axis FFT buffer. Returns array with 256 samples when complete.
   	int16_t * readFFTBuffer(uint8_t sensorAddr);

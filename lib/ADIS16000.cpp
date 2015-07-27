@@ -110,13 +110,6 @@ int16_t ADIS16000::regRead(uint8_t regAddr) {
   int16_t _dataOut = (_msbData << 8) | (_lsbData & 0xFF); // Concatenate upper and lower bytes
   // Shift MSB data left by 8 bits, mask LSB data with 0xFF, and OR both bits.
 
-#ifdef DEBUG 
-  Serial.print("Register 0x");
-  Serial.print((unsigned char)regAddr, HEX);
-  Serial.print(" reads: ");
-  Serial.println(_dataOut);
-#endif
-
   return(_dataOut);
 }
 
@@ -127,27 +120,44 @@ int16_t ADIS16000::regRead(uint8_t regAddr) {
 // regAddr - address of register to be written
 // regData - data to be written to the register
 ////////////////////////////////////////////////////////////////////////////
-int ADIS16000::regWrite(uint8_t regAddr,uint16_t regData) {
+int ADIS16000::regWrite(uint8_t regAddr, int16_t regData) {
 
   // Write register address and data
   uint16_t addr = (((regAddr & 0x7F) | 0x80) << 8); // Toggle sign bit, and check that the address is 8 bits
   uint16_t lowWord = (addr | (regData & 0xFF)); // OR Register address (A) with data(D) (AADD)
   uint16_t highWord = ((addr | 0x100) | ((regData >> 8) & 0xFF)); // OR Register address with data and increment address
+
+  // Split words into chars
+  uint8_t highBytehighWord = (highWord >> 8);
+  uint8_t lowBytehighWord = (highWord & 0xFF);
+  uint8_t highBytelowWord = (lowWord >> 8);
+  uint8_t lowBytelowWord = (lowWord & 0xFF);
+
+  // Write highWord to SPI bus
   digitalWrite(_CS, LOW); // Set CS low to enable device
-  SPI.transfer((uint8_t)lowWord); // Write low byte over SPI bus
-  SPI.transfer((uint8_t)highWord); //Write high byte over SPI bus
+  SPI.transfer(highBytehighWord); // Write high byte from high word to SPI bus
+  SPI.transfer(lowBytehighWord); // Write low byte from high word to SPI bus
   digitalWrite(_CS, HIGH); // Set CS high to disable device
-  
-  delayMicroseconds(25); // Delay to not violate read rate (40us)
 
-  #ifdef DEBUG
-    Serial.print("Wrote 0x");
-    Serial.println(regData);
-    Serial.print(" to register: 0x");
-    Serial.print((unsigned char)regAddr, HEX);
-  #endif
+  delayMicroseconds(40); // Delay to not violate read rate (40us)
 
-  return 1;
+  // Write lowWord to SPI bus
+  digitalWrite(_CS, LOW); // Set CS low to enable device
+  SPI.transfer(highBytelowWord); // Write high byte from low word to SPI bus
+  SPI.transfer(lowBytelowWord); // Write low byte from low word to SPI bus
+  digitalWrite(_CS, HIGH); // Set CS high to disable device
+
+  return(1);
+}
+
+int ADIS16000::testSensor(uint8_t sensorAddr){
+  uint16_t sensData = regRead(SENS_ID);
+  uint16_t HexID = 0xAD00;
+  HexID = HexID + sensorAddr;
+  if(HexID |= sensData)
+    return 0;
+  else
+    return 1;
 }
 
 int ADIS16000::addSensor(uint8_t sensorAddr) {
@@ -155,19 +165,14 @@ int ADIS16000::addSensor(uint8_t sensorAddr) {
 	delayMicroseconds(500000);
 	regWrite(CMD_DATA, sensorAddr);
   delayMicroseconds(2000000);
-  uint16_t sensData = regRead(SENS_ID);
-  uint16_t HexID = 0xAD00;
-  HexID = HexID + sensorAddr;
-  if(HexID |= sensData)
-    return 0;
-  else
-	  return 1;
+  int status = testSensor(sensorAddr);
+  return status;
 }
 
 int ADIS16000::removeSensor(uint8_t sensorAddr) {
 	regWrite(CMD_DATA, sensorAddr);
   delayMicroseconds(2000000);
-	regWrite(GLOB_CMD_G, 0x100);
+	regWrite(GLOB_CMD_G, 0x8000);
 	return 1;
 }
 
@@ -183,6 +188,13 @@ int ADIS16000::saveSensorSettings(uint8_t sensorAddr) {
 	regWrite(PAGE_ID, 0x00);
 	regWrite(GLOB_CMD_G, 0x02);
 	return 1;
+}
+
+int ADIS16000::pollSensor(uint8_t sensorAddr){
+  regWrite(CMD_DATA, sensorAddr);
+  regWrite(GLOB_CMD_G, 0x2000);
+  int status = testSensor(sensorAddr);
+  return status;
 }
 
 int ADIS16000::initRealTimeSampling() {
@@ -201,17 +213,24 @@ int ADIS16000::stopRealTimeSampling() {
   return 1;
 }
 
-int16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
-	int16_t buffer [512];
-	regWrite(PAGE_ID, sensorAddr);
+int ADIS16000::requestFFTData(uint8_t sensorAddr) {
+  regWrite(PAGE_ID, sensorAddr);
   regWrite(BUF_PNTR, 0x00);
   delayMicroseconds(100000);
   regWrite(GLOB_CMD_S, 0x800); // Start data acquisition
   regWrite(GLOB_CMD_G, 0X2); // Send data to sensor
-	for (int i = 0; i < 511; i++) {
+  return 1;
+}
+
+int16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
+  int16_t buffer[512];
+  regWrite(PAGE_ID, sensorAddr);
+	for (int i = 0; i < 255; i++) {
 		buffer[i] = regRead(X_BUF);
-    buffer[i + 256] = regRead(Y_BUF);
 	}
+  for (int i = 256; i < 512; i++) {
+    buffer[i] = regRead(Y_BUF);
+  }
 	return buffer;
 }
 

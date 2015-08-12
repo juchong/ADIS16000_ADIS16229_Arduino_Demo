@@ -150,11 +150,22 @@ int ADIS16000::regWrite(uint8_t regAddr, int16_t regData) {
   return(1);
 }
 
+int16_t ADIS16000::readProdID() {
+  regWrite(PAGE_ID, 0x00);
+  int16_t prodid = regRead(PROD_ID_G);
+  return(prodid);
+}
+
 int ADIS16000::testSensor(uint8_t sensorAddr){
+  regWrite(PAGE_ID, sensorAddr);
   uint16_t sensData = regRead(SENS_ID);
+  // Debug: Print raw sensor data
+  //Serial.print("sensData: ");
+  //Serial.printf("%3X",sensData);
+  //Serial.println(" ");
   uint16_t HexID = 0xAD00;
   HexID = HexID + sensorAddr;
-  if(HexID |= sensData)
+  if(HexID != sensData)
     return 0;
   else
     return 1;
@@ -191,8 +202,10 @@ int ADIS16000::saveSensorSettings(uint8_t sensorAddr) {
 }
 
 int ADIS16000::pollSensor(uint8_t sensorAddr){
+  regWrite(PAGE_ID, 0x00);
   regWrite(CMD_DATA, sensorAddr);
   regWrite(GLOB_CMD_G, 0x2000);
+  delay(1500);
   int status = testSensor(sensorAddr);
   return status;
 }

@@ -125,6 +125,8 @@ public:
   	// Write register (two bytes). Returns 1 when complete.
   	int regWrite(uint8_t regAddr, int16_t regData);
 
+    int16_t readProdID();
+
     int testSensor(uint8_t sensorData);
 
   	// Add sensor to network. Returns 1 when complete.

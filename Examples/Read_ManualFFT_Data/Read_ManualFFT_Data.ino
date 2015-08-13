@@ -3,10 +3,12 @@
 
 ADIS16000 VIBE(7,2,4); //CS,DR,RST
 String inputString = "";
+String addSensor = "";
 boolean sensorFound = false;
 int sensid = 0;
 int streamSensor = 99;
 boolean validSensor[6] = {0,0,0,0,0,0};
+boolean reScan = false;
 
 void setup()
 {
@@ -19,12 +21,16 @@ void setup()
 void loop()
 {
   // Wait for user input...
-  while(Serial.available() == 0) {
+  if(reScan == false){
+    while(Serial.available() == 0) {
+    }
+    inputString = Serial.readString();
   }
-  inputString = Serial.readString();
   
-  if(inputString == "y" || inputString == "Y") {
+  if(inputString == "y" || inputString == "Y" || reScan == true) {
     //Serial.println(inputString);
+    inputString == "";
+    reScan = false;
     if(VIBE.readProdID() == 0x3E80) {
       Serial.println("Found ADIS16000!");
       VIBE.setDataReady();
@@ -33,7 +39,7 @@ void loop()
       Serial.println("ERORR: Failed to connect to ADIS16000");
       Serial.println("Returned data may be invalid");
     }
-    Serial.println("Scanning...");
+    Serial.println("Scanning for sensors...");
     for(int i = 1; i < 7; i++){
       sensid = VIBE.pollSensor(i);
       if(sensid == 1) {
@@ -51,8 +57,35 @@ void loop()
     }
     if (sensorFound == false) {
       Serial.println("No Sensors Found");
-      Serial.println("Retry scan? [y/Y]");
+      Serial.println("Add a sensor? [y/n]");
       flushReceive();
+      while(Serial.available() == 0) {
+      }
+      addSensor = Serial.readString();
+      if(addSensor == "y" || addSensor == "Y"){
+        Serial.println("What ID should be assigned to the new sensor? [1 ~ 6]");
+        while(Serial.available() == 0) {
+        }
+        int newID = Serial.parseInt();
+        if(newID == 1 || newID == 2 || newID == 3 || newID == 4 || newID == 5 || newID == 6) {
+          int addStatus = VIBE.addSensor(newID);
+          if(addStatus == 1){
+            Serial.println("Sensor was added successfully!");
+            Serial.println("Scan for sensors again? [y/Y]");
+            sensorFound == true;
+          }
+          else {
+            Serial.println("ERROR: The sensor was not added successfully");
+            Serial.println("Scan for sensors again? [y/Y]");
+          }
+        }
+        else {
+          Serial.println("ERROR: The ID entered is not valid. Try again.");
+        }
+      }
+      else {
+        reScan = true;
+      }
     }
 
     Serial.println(" ");
@@ -68,20 +101,24 @@ void loop()
       streamSensor = Serial.parseInt();
       if(streamSensor == 1 || streamSensor == 2 || streamSensor == 3 || streamSensor == 4 || streamSensor == 5 || streamSensor == 6) {
         if(validSensor[streamSensor] == true) {
-          int16_t * data;
-          int16_t intData;
+          uint16_t * data;
+          uint16_t intData;
           data = VIBE.readFFTBuffer(streamSensor);
           Serial.println("X: ");
           for(int i = 0; i < 256; i++) {
             intData = data[i];
-            Serial.printf("%3X", intData);
-            Serial.printf(",");
+            //Serial.printf("%3X", intData);
+            Serial.print(intData);
+            Serial.print(",");
           }
+          Serial.flush();
+          Serial.println(" ");
           Serial.println("Y: ");
-          for(int i = 256; i < 512; i++) {
-            intData = data[i];
-            Serial.printf("%3X", intData);
-            Serial.printf(",");
+          for(int j = 0; j < 256; j++) {
+            intData = data[j + 256];
+            //Serial.printf("%3X", intData);
+            Serial.print(intData);
+            Serial.print(",");
           }
         }
         else
@@ -89,8 +126,8 @@ void loop()
           Serial.println("Invalid input. Try again.");
           flushReceive();
         }
-      }      
-    }    
+      }     
+    }  
   }
 }
 

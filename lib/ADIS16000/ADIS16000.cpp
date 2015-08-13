@@ -172,17 +172,17 @@ int ADIS16000::testSensor(uint8_t sensorAddr){
 }
 
 int ADIS16000::addSensor(uint8_t sensorAddr) {
-	regWrite(GLOB_CMD_G, 0x01);
-	delayMicroseconds(500000);
-	regWrite(CMD_DATA, sensorAddr);
-  delayMicroseconds(2000000);
+  regWrite(PAGE_ID, 0x00); // Set page to 0 (Gateway)
+	regWrite(GLOB_CMD_G, 0x01); // Add sensor to network command
+	regWrite(CMD_DATA, sensorAddr); // Assign sensor ID
+  delay(2000);
   int status = testSensor(sensorAddr);
   return status;
 }
 
 int ADIS16000::removeSensor(uint8_t sensorAddr) {
+  regWrite(PAGE_ID, 0x00);
 	regWrite(CMD_DATA, sensorAddr);
-  delayMicroseconds(2000000);
 	regWrite(GLOB_CMD_G, 0x8000);
 	return 1;
 }
@@ -235,27 +235,30 @@ int ADIS16000::requestFFTData(uint8_t sensorAddr) {
   return 1;
 }
 
-int16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
-  int16_t buffer[512];
-  regWrite(PAGE_ID, sensorAddr);
-  regWrite(GLOB_CMD_S,0x800);
-  regWrite(PAGE_ID, 0x00);
-  regWrite(GLOB_CMD_G, 0x0002);
+uint16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
+  uint16_t buffer[512]; // Allocate unsigned buffer to store data
+  regWrite(PAGE_ID, sensorAddr); // Set page to selected sensor registers
+  regWrite(GLOB_CMD_S,0x800); // Load "start recording data" command to buffer
+  regWrite(PAGE_ID, 0x00); // Set page to gateway registers
+  regWrite(CMD_DATA, sensorAddr); // Write sensor to be sent commands
+  regWrite(GLOB_CMD_G, 0x02); // Update settings of the sensor in CMD_DATA
 
-  delayMicroseconds(80000);
+  delay(1500);
 
   regWrite(PAGE_ID, sensorAddr);
-  regWrite(BUF_PNTR, 0x00);
+  regWrite(BUF_PNTR, 0x00); // Reset buffer pointer
+  delay(100);
 
 	for (int i = 0; i < 256; i++) {
 		buffer[i] = regRead(X_BUF);
 	}
-
+  delay(500);
   regWrite(PAGE_ID, sensorAddr);
   regWrite(BUF_PNTR, 0x00);
+  delay(100);
 
-  for (int i = 256; i < 512; i++) {
-    buffer[i] = regRead(Y_BUF);
+  for (int j = 0; j < 256; j++) {
+    buffer[j + 256] = regRead(Y_BUF);
   }
 	return buffer;
 }

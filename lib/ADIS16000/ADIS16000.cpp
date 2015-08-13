@@ -231,16 +231,29 @@ int ADIS16000::requestFFTData(uint8_t sensorAddr) {
   regWrite(BUF_PNTR, 0x00);
   delayMicroseconds(100000);
   regWrite(GLOB_CMD_S, 0x800); // Start data acquisition
-  regWrite(GLOB_CMD_G, 0X2); // Send data to sensor
+  regWrite(GLOB_CMD_G, 0x2); // Send data to sensor
   return 1;
 }
 
 int16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
   int16_t buffer[512];
   regWrite(PAGE_ID, sensorAddr);
-	for (int i = 0; i < 255; i++) {
+  regWrite(GLOB_CMD_S,0x800);
+  regWrite(PAGE_ID, 0x00);
+  regWrite(GLOB_CMD_G, 0x0002);
+
+  delayMicroseconds(80000);
+
+  regWrite(PAGE_ID, sensorAddr);
+  regWrite(BUF_PNTR, 0x00);
+
+	for (int i = 0; i < 256; i++) {
 		buffer[i] = regRead(X_BUF);
 	}
+
+  regWrite(PAGE_ID, sensorAddr);
+  regWrite(BUF_PNTR, 0x00);
+
   for (int i = 256; i < 512; i++) {
     buffer[i] = regRead(Y_BUF);
   }

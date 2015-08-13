@@ -23,7 +23,7 @@ void loop()
   }
   inputString = Serial.readString();
   
-  if(inputString == "y" || inputString == "Y"){
+  if(inputString == "y" || inputString == "Y") {
     //Serial.println(inputString);
     if(VIBE.readProdID() == 0x3E80) {
       Serial.println("Found ADIS16000!");
@@ -36,7 +36,7 @@ void loop()
     Serial.println("Scanning...");
     for(int i = 1; i < 7; i++){
       sensid = VIBE.pollSensor(i);
-      if(sensid == 1){
+      if(sensid == 1) {
         Serial.print("FOUND A SENSOR ON ID ");
         Serial.print(i);
         Serial.println(" ");
@@ -56,22 +56,37 @@ void loop()
     }
 
     Serial.println(" ");
-    while(sensorFound == true) {
+    if(sensorFound == true) {
       Serial.println("Sensors were found.");
-      Serial.println("Select which sensor to stream from [1 - 6]");
+    }
+    while(sensorFound == true) {
+      Serial.println(" ");
+      Serial.println("Select sensor to stream from [1 - 6]");
       flushReceive();
-      while(Serial.available() == 0){
+      while(Serial.available() == 0) {
       }
       streamSensor = Serial.parseInt();
       if(streamSensor == 1 || streamSensor == 2 || streamSensor == 3 || streamSensor == 4 || streamSensor == 5 || streamSensor == 6) {
-        if(validSensor[streamSensor] == true){
-          
-          Serial.println("Streaming...");
-            //DATA STREAM CODE GOES HERE
+        if(validSensor[streamSensor] == true) {
+          int16_t * data;
+          int16_t intData;
+          data = VIBE.readFFTBuffer(streamSensor);
+          Serial.println("X: ");
+          for(int i = 0; i < 256; i++) {
+            intData = data[i];
+            Serial.printf("%3X", intData);
+            Serial.printf(",");
+          }
+          Serial.println("Y: ");
+          for(int i = 256; i < 512; i++) {
+            intData = data[i];
+            Serial.printf("%3X", intData);
+            Serial.printf(",");
+          }
         }
         else
         {
-          Serial.println("Sensor is not present. Try again.");
+          Serial.println("Invalid input. Try again.");
           flushReceive();
         }
       }      
@@ -83,8 +98,6 @@ void flushReceive() {
   while(Serial.available())
   Serial.read();
 }
-
-void grabData() {
   
 
 

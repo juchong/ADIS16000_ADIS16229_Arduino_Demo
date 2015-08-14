@@ -235,32 +235,47 @@ int ADIS16000::requestFFTData(uint8_t sensorAddr) {
   return 1;
 }
 
-uint16_t * ADIS16000::readFFTBuffer(uint8_t sensorAddr) {
-  uint16_t buffer[512]; // Allocate unsigned buffer to store data
+int ADIS16000::readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]) {
   regWrite(PAGE_ID, sensorAddr); // Set page to selected sensor registers
   regWrite(GLOB_CMD_S,0x800); // Load "start recording data" command to buffer
   regWrite(PAGE_ID, 0x00); // Set page to gateway registers
   regWrite(CMD_DATA, sensorAddr); // Write sensor to be sent commands
   regWrite(GLOB_CMD_G, 0x02); // Update settings of the sensor in CMD_DATA
 
-  delay(1500);
+  delay(1500); // THIS SHOULD BE INTERRUPT DRIVEN
 
   regWrite(PAGE_ID, sensorAddr);
   regWrite(BUF_PNTR, 0x00); // Reset buffer pointer
   delay(100);
 
 	for (int i = 0; i < 256; i++) {
-		buffer[i] = regRead(X_BUF);
+		bufferxy[0][i] = regRead(X_BUF);
 	}
   delay(500);
   regWrite(PAGE_ID, sensorAddr);
   regWrite(BUF_PNTR, 0x00);
   delay(100);
+  Serial.println(" ");
 
-  for (int j = 0; j < 256; j++) {
-    buffer[j + 256] = regRead(Y_BUF);
+  for (int i = 0; i < 256; i++) {
+    bufferxy[1][i] = regRead(Y_BUF);
   }
-	return buffer;
+  /*
+  Serial.print("XDEV: ");
+  for (int i = 0; i < 256; i++) {
+    Serial.print(bufferxy[0][i]);
+    Serial.print("-");
+  }
+  Serial.println(" ");
+
+  Serial.print("YDEV: ");
+  for (int i = 0; i < 256; i++) {
+    Serial.print(bufferxy[1][i]);
+    Serial.print("-");
+  }
+  Serial.println(" ");
+  */
+	return 1;
 }
 
 int16_t * ADIS16000::readFFT(uint8_t sample, uint8_t sensorAddr) {

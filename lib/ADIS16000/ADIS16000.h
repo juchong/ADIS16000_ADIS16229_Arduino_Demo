@@ -150,7 +150,7 @@ public:
     int requestFFTData(uint8_t sensorAddr);
 
   	// Reads entire X-Axis FFT buffer. Returns array with 256 samples when complete.
-  	uint16_t * readFFTBuffer(uint8_t sensorAddr);
+  	int readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]);
 
   	// Reads single FFT sample from both (X & Y) axis. Returns single sample when complete. 
   	int16_t * readFFT(uint8_t sample, uint8_t sensorAddr);

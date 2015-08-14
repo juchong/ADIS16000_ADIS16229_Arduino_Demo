@@ -16,6 +16,7 @@ void setup()
   VIBE.configSPI(); // Configure SPI communication to IMU  
   Serial.println("Start scan? [y/Y]");
   flushReceive();
+  VIBE.regWrite(REC_CTRL1, 0x00);
 }
 
 void loop()
@@ -63,7 +64,7 @@ void loop()
       }
       addSensor = Serial.readString();
       if(addSensor == "y" || addSensor == "Y"){
-        Serial.println("What ID should be assigned to the new sensor? [1 ~ 6]");
+        Serial.println("What ID should be assigned to the new sensor? [1 - 6]");
         while(Serial.available() == 0) {
         }
         int newID = Serial.parseInt();
@@ -101,25 +102,29 @@ void loop()
       streamSensor = Serial.parseInt();
       if(streamSensor == 1 || streamSensor == 2 || streamSensor == 3 || streamSensor == 4 || streamSensor == 5 || streamSensor == 6) {
         if(validSensor[streamSensor] == true) {
-          uint16_t * data;
-          uint16_t intData;
-          data = VIBE.readFFTBuffer(streamSensor);
-          Serial.println("X: ");
-          for(int i = 0; i < 256; i++) {
-            intData = data[i];
-            //Serial.printf("%3X", intData);
-            Serial.print(intData);
-            Serial.print(",");
-          }
-          Serial.flush();
-          Serial.println(" ");
-          Serial.println("Y: ");
-          for(int j = 0; j < 256; j++) {
-            intData = data[j + 256];
-            //Serial.printf("%3X", intData);
-            Serial.print(intData);
-            Serial.print(",");
-          }
+          VIBE.regWrite(PAGE_ID, streamSensor);
+          VIBE.regWrite(REC_CTRL1, 0x1102);
+          VIBE.regWrite(GLOB_CMD_G, 0x02);
+          
+          uint16_t bufferxy[2][256];
+                    
+          int dataWritten = VIBE.readFFTBuffer(streamSensor, bufferxy);
+          if (dataWritten == 1) {
+            Serial.println("X: ");            
+            for(int i = 0; i < 256; i++) {
+              //Serial.printf("%3X", intData);
+              Serial.print(bufferxy[0][i]);
+              Serial.print(",");
+            }
+            
+            Serial.println(" ");
+            Serial.println("Y: ");            
+            for(int i = 0; i < 256; i++) {
+              //Serial.printf("%3X", intData);
+              Serial.print(bufferxy[1][i]);
+              Serial.print(",");
+            }
+          }          
         }
         else
         {

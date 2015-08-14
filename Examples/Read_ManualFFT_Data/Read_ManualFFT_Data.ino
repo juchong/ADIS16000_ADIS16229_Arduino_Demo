@@ -107,7 +107,7 @@ void loop()
           VIBE.regWrite(GLOB_CMD_G, 0x02);
           
           uint16_t bufferxy[2][256];
-                    
+          VIBE.requestFFTData(streamSensor);
           int dataWritten = VIBE.readFFTBuffer(streamSensor, bufferxy);
           if (dataWritten == 1) {
             Serial.println("X: ");            

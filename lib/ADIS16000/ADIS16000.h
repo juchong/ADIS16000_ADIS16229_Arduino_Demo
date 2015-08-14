@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  June 2015
+//  August 2015
 //  Author: Juan Jose Chong <juan.chong@analog.com>
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  ADIS16000.h
@@ -99,7 +99,7 @@
 #define LOT_ID1_S		0x68
 #define LOT_ID2_S		0x6A
 
-//ADIS16000/ADIS16229 Class Definition
+// ADIS16000/ADIS16229 Class Definition
 class ADIS16000{
 
 public:
@@ -114,6 +114,7 @@ public:
 	// Performs hardware reset. Delay in milliseconds. Returns 1 when complete.
 	int hardwareResetDUT(uint8_t ms);
 
+  // Performs software reset.
   int softwareResetDUT();
 
 	// Sets SPI bit order, clock divider, and data mode. Returns 1 when complete.
@@ -122,60 +123,56 @@ public:
 	// Read register (two bytes) Returns signed 16 bit data.
  	int16_t regRead(uint8_t regAddr);
 
-  	// Write register (two bytes). Returns 1 when complete.
-  	int regWrite(uint8_t regAddr, int16_t regData);
+	// Write register (two bytes). Returns 1 when complete.
+	int regWrite(uint8_t regAddr, int16_t regData);
 
-    int16_t readProdID();
+  // Read the ADIS16000 product ID.
+  int16_t readProdID();
 
-    int testSensor(uint8_t sensorData);
+  // Performs a test to determine whether the sensor written in sensorData is present.
+  int testSensor(uint8_t sensorData);
 
-  	// Add sensor to network. Returns 1 when complete.
-  	int addSensor(uint8_t sensorAddr);
+	// Add sensor to network. Returns 1 when complete.
+	int addSensor(uint8_t sensorAddr);
 
-  	// Remove sensor from network. Returns 1 when complete.
-  	int removeSensor(uint8_t sensorAddr);
+	// Remove sensor from network. Returns 1 when complete.
+	int removeSensor(uint8_t sensorAddr);
 
-  	// Save configuration settings for gateway. Returns 1 when complete.
-  	int saveGatewaySettings();
+	// Save configuration settings for the gateway. Returns 1 when complete.
+	int saveGatewaySettings();
 
-  	// Save configuration settings for selected sensor. Returns 1 when complete.
-  	int saveSensorSettings(uint8_t sensorAddr);
+	// Save configuration settings for the selected sensor. Returns 1 when complete.
+	int saveSensorSettings(uint8_t sensorAddr);
 
-    int pollSensor(uint8_t sensorAddr);
+  // Polls a single sensor on the network and returns whether it is active.
+  int pollSensor(uint8_t sensorAddr);
 
-    int initRealTimeSampling();
+  int initRealTimeSampling();
 
-    int stopRealTimeSampling();
+  int stopRealTimeSampling();
 
-    int requestFFTData(uint8_t sensorAddr);
+  // Requests FFT data from the specified sensor. 
+  int requestFFTData(uint8_t sensorAddr);
 
-  	// Reads entire X-Axis FFT buffer. Returns array with 256 samples when complete.
-  	int readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]);
+	// Reads FFT data from the output buffers and loads them into a buffer allocated on the host MCU.
+	int readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]);
 
-  	// Reads single FFT sample from both (X & Y) axis. Returns single sample when complete. 
-  	int16_t * readFFT(uint8_t sample, uint8_t sensorAddr);
+	// Configures Data Ready functionality.
+	int setDataReady();
 
-    int triggerFFT();
+  int setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t sensorAddr);
 
-  	// Sets DataReady GPIO pin. Returns 1 when complete.
-  	int setDataReady();
+	// Scales single time sample. Returns acceleration in mg.
+	float scaleTime(int16_t sensorData, int gRange);
 
-  	// Reads entire time buffer when DataReady transitions. Returns array with 512 samples.
-  	int16_t * readTimeBuffer();
+	// Scales single FFT sample. Returns acceleration in mg.
+	float scaleFFT(int16_t sensorData, int gRange);
 
-    int setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t sensorAddr);
+	// Scales supply voltage. Returns voltage in mV.
+	float scaleSupply(int16_t sensorData);
 
-  	// Scales single time sample. Returns acceleration in mg.
-  	float scaleTime(int16_t sensorData, int gRange);
-
-  	// Scales single FFT sample. Returns acceleration in mg.
-  	float scaleFFT(int16_t sensorData, int gRange);
-
-  	// Scales supply voltage. Returns voltage in mV.
-  	float scaleSupply(int16_t sensorData);
-
-  	// Scales sensor temperature. Returns temperature in C.
-  	float scaleTemp(int16_t sensorData);
+	// Scales sensor temperature. Returns temperature in C.
+	float scaleTemp(int16_t sensorData);
 
 private:
 	int _CS;

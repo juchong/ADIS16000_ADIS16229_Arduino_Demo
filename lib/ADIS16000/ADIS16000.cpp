@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
-//  June 2015
+//  August 2015
 //  Author: Juan Jose Chong <juan.chong@analog.com>
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 //  ADIS16000.cpp
@@ -150,29 +150,45 @@ int ADIS16000::regWrite(uint8_t regAddr, int16_t regData) {
   return(1);
 }
 
+////////////////////////////////////////////////////////////////////////////
+// Reads the product ID of the SPI device.
+// Returns the product ID in LSBs (Default: 0x3E80)
+////////////////////////////////////////////////////////////////////////////
+
 int16_t ADIS16000::readProdID() {
   regWrite(PAGE_ID, 0x00);
   int16_t prodid = regRead(PROD_ID_G);
   return(prodid);
 }
 
+////////////////////////////////////////////////////////////////////////////
+// Reads whether the sensor requested responds with an ID equal to the one
+//  requested.
+// Returns 1 if the sensor responds, 0 if it does not.
+////////////////////////////////////////////////////////////////////////////
+
 int ADIS16000::testSensor(uint8_t sensorAddr){
-  regWrite(PAGE_ID, sensorAddr);
-  uint16_t sensData = regRead(SENS_ID);
+  regWrite(PAGE_ID, sensorAddr); // Set page to sensorAddr
+  uint16_t sensData = regRead(SENS_ID); // Read the SENS_ID register
   // Debug: Print raw sensor data
   //Serial.print("sensData: ");
   //Serial.printf("%3X",sensData);
   //Serial.println(" ");
   uint16_t HexID = 0xAD00;
-  HexID = HexID + sensorAddr;
-  if(HexID != sensData)
+  HexID = HexID + sensorAddr; // Mask the sensor address with the HEXID
+  if(HexID != sensData) // The result should match the sensor address specified
     return 0;
   else
     return 1;
 }
 
+////////////////////////////////////////////////////////////////////////////
+// Adds a sensor to the network and assigns the desired sensor address.
+// Returns the result of testSensor().
+////////////////////////////////////////////////////////////////////////////
+
 int ADIS16000::addSensor(uint8_t sensorAddr) {
-  regWrite(PAGE_ID, 0x00); // Set page to 0 (Gateway)
+  regWrite(PAGE_ID, 0x00); // Set page to 0 (gateway)
 	regWrite(GLOB_CMD_G, 0x01); // Add sensor to network command
 	regWrite(CMD_DATA, sensorAddr); // Assign sensor ID
   delay(2000);
@@ -180,18 +196,34 @@ int ADIS16000::addSensor(uint8_t sensorAddr) {
   return status;
 }
 
+////////////////////////////////////////////////////////////////////////////
+// Removes a sensor from the network and clears its address from the 
+//  network table.
+// Returns 1 when complete.
+////////////////////////////////////////////////////////////////////////////
+
 int ADIS16000::removeSensor(uint8_t sensorAddr) {
-  regWrite(PAGE_ID, 0x00);
-	regWrite(CMD_DATA, sensorAddr);
-	regWrite(GLOB_CMD_G, 0x8000);
+  regWrite(PAGE_ID, 0x00); // Set page to 0 (gateway)
+	regWrite(CMD_DATA, sensorAddr); // Set CMD_DATA to the desired sensor
+	regWrite(GLOB_CMD_G, 0x8000); // Remove the sensor listed in CMD_DATA from the network
 	return 1;
 }
+
+////////////////////////////////////////////////////////////////////////////
+// Saves gateway settings to memory (EEPROM).
+// Returns 1 when complete.
+////////////////////////////////////////////////////////////////////////////
 
 int ADIS16000::saveGatewaySettings() {
 	regWrite(PAGE_ID, 0x00);
 	regWrite(GLOB_CMD_G, 0x40);
 	return 1;
 }
+
+////////////////////////////////////////////////////////////////////////////
+// Saves sensor settings to memory (EEPROM).
+// Returns 1 when complete.
+////////////////////////////////////////////////////////////////////////////
 
 int ADIS16000::saveSensorSettings(uint8_t sensorAddr) {
 	regWrite(PAGE_ID, sensorAddr);
@@ -200,6 +232,11 @@ int ADIS16000::saveSensorSettings(uint8_t sensorAddr) {
 	regWrite(GLOB_CMD_G, 0x02);
 	return 1;
 }
+
+////////////////////////////////////////////////////////////////////////////
+// Polls a single sensor on the network and returns whether it is active.
+// Returns 1 if the sensor responds, 0 if it does not.
+////////////////////////////////////////////////////////////////////////////
 
 int ADIS16000::pollSensor(uint8_t sensorAddr){
   regWrite(PAGE_ID, 0x00);
@@ -226,24 +263,30 @@ int ADIS16000::stopRealTimeSampling() {
   return 1;
 }
 
-int ADIS16000::requestFFTData(uint8_t sensorAddr) {
-  regWrite(PAGE_ID, sensorAddr);
-  regWrite(BUF_PNTR, 0x00);
-  delayMicroseconds(100000);
-  regWrite(GLOB_CMD_S, 0x800); // Start data acquisition
-  regWrite(GLOB_CMD_G, 0x2); // Send data to sensor
-  return 1;
-}
+////////////////////////////////////////////////////////////////////////////
+// Requests FFT data from the specified sensor. 
+// Returns 1 when the sensor finishes acquiring data.
+////////////////////////////////////////////////////////////////////////////
 
-int ADIS16000::readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]) {
+int ADIS16000::requestFFTData(uint8_t sensorAddr) {
   regWrite(PAGE_ID, sensorAddr); // Set page to selected sensor registers
   regWrite(GLOB_CMD_S,0x800); // Load "start recording data" command to buffer
   regWrite(PAGE_ID, 0x00); // Set page to gateway registers
   regWrite(CMD_DATA, sensorAddr); // Write sensor to be sent commands
   regWrite(GLOB_CMD_G, 0x02); // Update settings of the sensor in CMD_DATA
-
   delay(1500); // THIS SHOULD BE INTERRUPT DRIVEN
 
+  return 1;
+}
+
+////////////////////////////////////////////////////////////////////////////
+// Reads FFT data from the output buffers and loads them into a buffer 
+//  allocated on the host MCU.
+// Returns 1 when the buffer has been loaded.
+// NOTE: The buffer must be declared in main() as: uint16_t bufferxy[2][256];
+////////////////////////////////////////////////////////////////////////////
+
+int ADIS16000::readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]) {
   regWrite(PAGE_ID, sensorAddr);
   regWrite(BUF_PNTR, 0x00); // Reset buffer pointer
   delay(100);
@@ -278,22 +321,15 @@ int ADIS16000::readFFTBuffer(uint8_t sensorAddr, uint16_t bufferxy[][256]) {
 	return 1;
 }
 
-int16_t * ADIS16000::readFFT(uint8_t sample, uint8_t sensorAddr) {
-	int16_t buffer [2];
-	regWrite(PAGE_ID, sensorAddr);
-	regWrite(BUF_PNTR, sample);
-	buffer[1] = regRead(X_BUF);
-	buffer[2] = regRead(Y_BUF);
-	return buffer;
-}
-
-int ADIS16000::triggerFFT() {
-  regWrite(GLOB_CMD_G, 0x02);
-}
+////////////////////////////////////////////////////////////////////////////
+// Configures Data Ready functionality.
+// Returns 1 when complete.
+////////////////////////////////////////////////////////////////////////////
 
 int ADIS16000::setDataReady() {
 	regWrite(PAGE_ID, 0x00);
 	regWrite(GPO_CTRL, 0x08);
+  return 1;
 }
 
 int ADIS16000::setPeriodicMode(uint16_t interval, uint8_t scalefactor, uint8_t sensorAddr) {
